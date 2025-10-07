@@ -60,7 +60,7 @@ void init() {
     srand(time(NULL));
     self.particles = list_init();
     /* randomly generate particles */
-    int32_t startingParticles = 1000; // number of particles
+    int32_t startingParticles = 0; // number of particles
     for (int32_t i = 0; i < startingParticles; i++) {
         int32_t type = randomInt(0, NUMBER_OF_PARTICLE_TYPES - 1);
         list_append(self.particles, (unitype) type, 'i'); // type
@@ -81,9 +81,9 @@ void init() {
         for (int32_t j = 0; j < 11; j++) {
             list_append(self.particles, (unitype) 0, 'i');
         }
-        printParticle(i * 20);
+        // printParticle(i * 20);
     }
-    int32_t type = randomInt(0, NUMBER_OF_PARTICLE_TYPES - 1);
+    int32_t type = PARTICLE_TYPE_ELECTRON;
     list_append(self.particles, (unitype) type, 'i'); // type
     if (type == PARTICLE_TYPE_ELECTRON) {
         list_append(self.particles, (unitype) randomInt(1, self.electronNucleusBoundary), 'i'); // cluster (1 or 2)
@@ -102,8 +102,7 @@ void init() {
     for (int32_t j = 0; j < 11; j++) {
         list_append(self.particles, (unitype) 0, 'i');
     }
-    printParticle(0);
-    type = randomInt(0, NUMBER_OF_PARTICLE_TYPES - 1);
+    type = PARTICLE_TYPE_NUCLEUS;
     list_append(self.particles, (unitype) type, 'i'); // type
     if (type == PARTICLE_TYPE_ELECTRON) {
         list_append(self.particles, (unitype) randomInt(1, self.electronNucleusBoundary), 'i'); // cluster (1 or 2)
@@ -122,7 +121,6 @@ void init() {
     for (int32_t j = 0; j < 11; j++) {
         list_append(self.particles, (unitype) 0, 'i');
     }
-    printParticle(20);
 }
 
 /* print particle attributes */
@@ -185,6 +183,28 @@ void render() {
     for (int32_t i = 0; i < self.particles -> length; i += PI_NUMBER_OF_FIELDS) {
         renderParticle(i);
         if (self.pause == 0) {
+            /* move particles */
+            self.particles -> data[i + PI_XPOS].d += self.particles -> data[i + PI_XVEL].d;
+            if (self.particles -> data[i + PI_XPOS].d >= 320) {
+                self.particles -> data[i + PI_XPOS].d -= 640;
+            }
+            if (self.particles -> data[i + PI_XPOS].d < -320) {
+                self.particles -> data[i + PI_XPOS].d += 640;
+            }
+            self.particles -> data[i + PI_YPOS].d += self.particles -> data[i + PI_YVEL].d;
+            while (self.particles -> data[i + PI_YPOS].d >= 180) {
+                self.particles -> data[i + PI_YPOS].d -= 360;
+            }
+            while (self.particles -> data[i + PI_YPOS].d < -180) {
+                self.particles -> data[i + PI_YPOS].d += 360;
+            }
+            self.particles -> data[i + PI_DIRECTION].d += self.particles -> data[i + PI_DIRCHANGE].d;
+            while (self.particles -> data[i + PI_DIRECTION].d >= 360) {
+                self.particles -> data[i + PI_DIRECTION].d -= 360;
+            }
+            while (self.particles -> data[i + PI_DIRECTION].d < 0) {
+                self.particles -> data[i + PI_DIRECTION].d += 360;
+            }
             /* check collision (particles need to check if they've crossed paths with any other particle within the circle with a radius of their velocity vector) */
             double centerX = 0;
             double Ar = self.particles -> data[i + PI_SIZE].d * radius_table[self.particles -> data[i + PI_CLUSTER].i] / 2;
@@ -199,7 +219,6 @@ void render() {
                 double Bvx = self.particles -> data[j + PI_XVEL].d;
                 double Bvy = self.particles -> data[j + PI_YVEL].d;
                 double discriminant = (2 * (Avx - Bvx) * (Ax - Bx) + 2 * (Avy - Bvy) * (Ay - By)) * (2 * (Avx - Bvx) * (Ax - Bx) + 2 * (Avy - Bvy) * (Ay - By)) + 4 * ((Avx - Bvx) * (Avx - Bvx) + (Avy - Bvy) * (Avy - Bvy)) * ((Ar + Br) * (Ar + Br) - Ax * Ax + 2 * (Ax * Bx) - Bx * Bx - Ay * Ay + 2 * (Ay * By) - By * By);
-                // printf("disc: %lf\n", discriminant);
                 if (discriminant <= 0) {
                     /* no collision */
                 } else {
@@ -211,32 +230,8 @@ void render() {
                         self.particles -> data[i + PI_YVEL].d *= -1;
                         self.particles -> data[j + PI_XVEL].d *= -1;
                         self.particles -> data[j + PI_YVEL].d *= -1;
-                        // printf("particles %d and %d collided\n", i, j);
                     }
-                    // printf("particles %d and %d will collide at %.2lf and %.2lf\n", i, j, t1, t2);
                 }
-            }
-            /* move particles */
-            self.particles -> data[i + PI_XPOS].d += self.particles -> data[i + PI_XVEL].d;
-            if (self.particles -> data[i + PI_XPOS].d > 320) {
-                self.particles -> data[i + PI_XPOS].d -= 640;
-            }
-            if (self.particles -> data[i + PI_XPOS].d < -320) {
-                self.particles -> data[i + PI_XPOS].d += 640;
-            }
-            self.particles -> data[i + PI_YPOS].d += self.particles -> data[i + PI_YVEL].d;
-            if (self.particles -> data[i + PI_YPOS].d > 180) {
-                self.particles -> data[i + PI_YPOS].d -= 360;
-            }
-            if (self.particles -> data[i + PI_YPOS].d < -180) {
-                self.particles -> data[i + PI_YPOS].d += 360;
-            }
-            self.particles -> data[i + PI_DIRECTION].d += self.particles -> data[i + PI_DIRCHANGE].d;
-            if (self.particles -> data[i + PI_DIRECTION].d > 360) {
-                self.particles -> data[i + PI_DIRECTION].d -= 360;
-            }
-            if (self.particles -> data[i + PI_DIRECTION].d < 0) {
-                self.particles -> data[i + PI_DIRECTION].d += 360;
             }
         }
     }
