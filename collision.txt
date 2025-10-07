@@ -1,6 +1,8 @@
-t = (-2 * (Avx - Bvx) * (Ax - Bx) - 2 * (Avy - Bvy) * (Ay - By) PLUS OR MINUS sqrt((2 * (Avx - Bvx) * (Ax - Bx) + 2 * (Avy - Bvy) * (Ay - By)) * (2 * (Avx - Bvx) * (Ax - Bx) + 2 * (Avy - Bvy) * (Ay - By)) - 4((Avx - Bvx) * (Avx - Bvx) + (Avy - Bvy) * (Avy - Bvy)) * ((Ar + Br) * (Ar + Br) - Ax * Ax + 2 * (Ax * Bx) - Bx * Bx - Ay * Ay + 2 * (Ay * By) - By * By))) / 2 * ((Avx - Bvx) * (Avx - Bvx) + (Avy - Bvy) * (Avy - Bvy))
+t = (-2 * (Avx - Bvx) * (Ax - Bx) - 2 * (Avy - Bvy) * (Ay - By) PLUS OR MINUS sqrt((2 * (Avx - Bvx) * (Ax - Bx) + 2 * (Avy - Bvy) * (Ay - By)) * (2 * (Avx - Bvx) * (Ax - Bx) + 2 * (Avy - Bvy) * (Ay - By)) + 4 * ((Avx - Bvx) * (Avx - Bvx) + (Avy - Bvy) * (Avy - Bvy)) * ((Ar + Br) * (Ar + Br) - Ax * Ax + 2 * (Ax * Bx) - Bx * Bx - Ay * Ay + 2 * (Ay * By) - By * By))) / (2 * ((Avx - Bvx) * (Avx - Bvx) + (Avy - Bvy) * (Avy - Bvy)))
 
 Where
+t = time of particle collision
+
 Ar = Radius of particle A
 Ax = X position of particle A
 Ay = Y Position of particle A
@@ -13,4 +15,7 @@ By = Y Position of particle B
 Bvx = X Velocity of particle B
 Bvy = Y Velocity of particle B
 
-There are two (potentially complex) solutions to this problem - the collision is the one that results in a lower t value. If both solutions are complex numbers, then no collision will take place. If both solutions are equivalent then the particles will touch but not collide (they will be tangent to each other).
+There are two (potentially complex) solutions to this problem - the collision time is the one that results in a lower t value. If both solutions are complex numbers, then no collision will take place. If both solutions are equivalent then the particles will touch but not collide (they will be tangent to each other).
+
+Derive this formula by noting that ((Ax + Avx * t) - (Bx + Bvx * t)) * ((Ax + Avx * t) - (Bx + Bvx * t)) = (Ar + Br) * (Ar + Br) when the particles are tangent (touching at exactly one point). This value of t is therefore the beginning or ending of a collision between these two particles.
+

@@ -60,7 +60,7 @@ void init() {
     srand(time(NULL));
     self.particles = list_init();
     /* randomly generate particles */
-    int32_t startingParticles = 30; // number of particles
+    int32_t startingParticles = 50; // number of particles
     for (int32_t i = 0; i < startingParticles; i++) {
         int32_t type = randomInt(0, NUMBER_OF_PARTICLE_TYPES - 1);
         list_append(self.particles, (unitype) type, 'i'); // type
@@ -83,6 +83,46 @@ void init() {
         }
         printParticle(i * 20);
     }
+    int32_t type = randomInt(0, NUMBER_OF_PARTICLE_TYPES - 1);
+    list_append(self.particles, (unitype) type, 'i'); // type
+    if (type == PARTICLE_TYPE_ELECTRON) {
+        list_append(self.particles, (unitype) randomInt(1, self.electronNucleusBoundary), 'i'); // cluster (1 or 2)
+    } else if (type == PARTICLE_TYPE_NUCLEUS) {
+        list_append(self.particles, (unitype) randomInt(self.electronNucleusBoundary + 1, 5), 'i'); // cluster (3 to 5)
+    } else {
+        list_append(self.particles, (unitype) 0, 'i'); // cluster (0)
+    }
+    list_append(self.particles, (unitype) -200.0, 'd'); // xpos
+    list_append(self.particles, (unitype) 0, 'd'); // ypos
+    list_append(self.particles, (unitype) 1.0, 'd'); // xvel
+    list_append(self.particles, (unitype) 0, 'd'); // yvel
+    list_append(self.particles, (unitype) 1.0, 'd'); // size
+    list_append(self.particles, (unitype) randomDouble(0, 360), 'd'); // direction
+    list_append(self.particles, (unitype) randomDouble(-5, 5), 'd'); // direction change
+    for (int32_t j = 0; j < 11; j++) {
+        list_append(self.particles, (unitype) 0, 'i');
+    }
+    printParticle(0);
+    type = randomInt(0, NUMBER_OF_PARTICLE_TYPES - 1);
+    list_append(self.particles, (unitype) type, 'i'); // type
+    if (type == PARTICLE_TYPE_ELECTRON) {
+        list_append(self.particles, (unitype) randomInt(1, self.electronNucleusBoundary), 'i'); // cluster (1 or 2)
+    } else if (type == PARTICLE_TYPE_NUCLEUS) {
+        list_append(self.particles, (unitype) randomInt(self.electronNucleusBoundary + 1, 5), 'i'); // cluster (3 to 5)
+    } else {
+        list_append(self.particles, (unitype) 0, 'i'); // cluster (0)
+    }
+    list_append(self.particles, (unitype) 200.0, 'd'); // xpos
+    list_append(self.particles, (unitype) 0, 'd'); // ypos
+    list_append(self.particles, (unitype) -1.0, 'd'); // xvel
+    list_append(self.particles, (unitype) 0, 'd'); // yvel
+    list_append(self.particles, (unitype) 1.0, 'd'); // size
+    list_append(self.particles, (unitype) randomDouble(0, 360), 'd'); // direction
+    list_append(self.particles, (unitype) randomDouble(-5, 5), 'd'); // direction change
+    for (int32_t j = 0; j < 11; j++) {
+        list_append(self.particles, (unitype) 0, 'i');
+    }
+    printParticle(20);
 }
 
 /* print particle attributes */
@@ -144,8 +184,39 @@ void render() {
     /* render particles */
     for (int32_t i = 0; i < self.particles -> length; i += PI_NUMBER_OF_FIELDS) {
         renderParticle(i);
-        /* move particles */
         if (self.pause == 0) {
+            /* check collision (particles need to check if they've crossed paths with any other particle within the circle with a radius of their velocity vector) */
+            double centerX = 0;
+            double Ar = self.particles -> data[i + PI_SIZE].d * radius_table[self.particles -> data[i + PI_CLUSTER].i] / 2;
+            double Ax = self.particles -> data[i + PI_XPOS].d;
+            double Ay = self.particles -> data[i + PI_YPOS].d;
+            double Avx = self.particles -> data[i + PI_XVEL].d;
+            double Avy = self.particles -> data[i + PI_YVEL].d;
+            for (int32_t j = 0; j < i; j += PI_NUMBER_OF_FIELDS) {
+                double Br = self.particles -> data[j + PI_SIZE].d * radius_table[self.particles -> data[j + PI_CLUSTER].i] / 2;
+                double Bx = self.particles -> data[j+ PI_XPOS].d;
+                double By = self.particles -> data[j + PI_YPOS].d;
+                double Bvx = self.particles -> data[j + PI_XVEL].d;
+                double Bvy = self.particles -> data[j + PI_YVEL].d;
+                double discriminant = (2 * (Avx - Bvx) * (Ax - Bx) + 2 * (Avy - Bvy) * (Ay - By)) * (2 * (Avx - Bvx) * (Ax - Bx) + 2 * (Avy - Bvy) * (Ay - By)) + 4 * ((Avx - Bvx) * (Avx - Bvx) + (Avy - Bvy) * (Avy - Bvy)) * ((Ar + Br) * (Ar + Br) - Ax * Ax + 2 * (Ax * Bx) - Bx * Bx - Ay * Ay + 2 * (Ay * By) - By * By);
+                // printf("disc: %lf\n", discriminant);
+                if (discriminant <= 0) {
+                    /* no collision */
+                } else {
+                    double sqrtDisc = sqrt(discriminant);
+                    double t1 = (-2 * (Avx - Bvx) * (Ax - Bx) - 2 * (Avy - Bvy) * (Ay - By) + sqrtDisc) / (2 * ((Avx - Bvx) * (Avx - Bvx) + (Avy - Bvy) * (Avy - Bvy)));
+                    double t2 = (-2 * (Avx - Bvx) * (Ax - Bx) - 2 * (Avy - Bvy) * (Ay - By) - sqrtDisc) / (2 * ((Avx - Bvx) * (Avx - Bvx) + (Avy - Bvy) * (Avy - Bvy)));
+                    if (t2 > 0 && t1 > 0 && (t1 <= 1 || t2 <= 1)) {
+                        self.particles -> data[i + PI_XVEL].d *= -1;
+                        self.particles -> data[i + PI_YVEL].d *= -1;
+                        self.particles -> data[j + PI_XVEL].d *= -1;
+                        self.particles -> data[j + PI_YVEL].d *= -1;
+                        // printf("particles %d and %d collided\n", i, j);
+                    }
+                    // printf("particles %d and %d will collide at %.2lf and %.2lf\n", i, j, t1, t2);
+                }
+            }
+            /* move particles */
             self.particles -> data[i + PI_XPOS].d += self.particles -> data[i + PI_XVEL].d;
             if (self.particles -> data[i + PI_XPOS].d > 320) {
                 self.particles -> data[i + PI_XPOS].d -= 640;
@@ -167,19 +238,6 @@ void render() {
             if (self.particles -> data[i + PI_DIRECTION].d < 0) {
                 self.particles -> data[i + PI_DIRECTION].d += 360;
             }
-            /* check collision (particles need to check if they've crossed paths with any other particle within the circle with a radius of their velocity vector) */
-            double centerX = 0;
-
-            // double leftx1 = 0;
-            // double lefty1 = 0;
-            // double leftx2 = 0;
-            // double lefty2 = 0;
-            // for (int j = 0; j < self.particles -> length; j += PI_NUMBER_OF_FIELDS) {
-            //     if (i == j) {
-            //         continue;
-            //     }
-                
-            // }
         }
     }
 }
