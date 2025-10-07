@@ -1,0 +1,16 @@
+t = (-2 * (Avx - Bvx) * (Ax - Bx) - 2 * (Avy - Bvy) * (Ay - By) PLUS OR MINUS sqrt((2 * (Avx - Bvx) * (Ax - Bx) + 2 * (Avy - Bvy) * (Ay - By)) * (2 * (Avx - Bvx) * (Ax - Bx) + 2 * (Avy - Bvy) * (Ay - By)) - 4((Avx - Bvx) * (Avx - Bvx) + (Avy - Bvy) * (Avy - Bvy)) * ((Ar + Br) * (Ar + Br) - Ax * Ax + 2 * (Ax * Bx) - Bx * Bx - Ay * Ay + 2 * (Ay * By) - By * By))) / 2 * ((Avx - Bvx) * (Avx - Bvx) + (Avy - Bvy) * (Avy - Bvy))
+
+Where
+Ar = Radius of particle A
+Ax = X position of particle A
+Ay = Y Position of particle A
+Avx = X Velocity of particle A
+Avy = Y Velocity of particle A
+
+Br = Radius of particle B
+Bx = X position of particle B
+By = Y Position of particle B
+Bvx = X Velocity of particle B
+Bvy = Y Velocity of particle B
+
+There are two (potentially complex) solutions to this problem - the collision is the one that results in a lower t value. If both solutions are complex numbers, then no collision will take place. If both solutions are equivalent then the particles will touch but not collide (they will be tangent to each other).
