@@ -45,8 +45,10 @@ typedef struct {
     list_t *particles; // type, cluster, xpos, ypos, xvel, yvel, size, direction, direction change, reserved, reserved, reserved, reserved, reserved, reserved, reserved, reserved, reserved, reserved, reserved
     int32_t electronNucleusBoundary;
     int8_t pause;
+    int8_t oneTick;
     int8_t drawRadius;
     char keys[8];
+    double simulationSpeed;
 } particles_t;
 
 particles_t self;
@@ -56,7 +58,9 @@ void printParticle(int32_t index);
 void init() {
     self.electronNucleusBoundary = 2; // cluster of 2 is an electron, cluster of 3 is a nucleus
     self.pause = 0;
+    self.oneTick = 0;
     self.drawRadius = 0;
+    self.simulationSpeed = 1;
     srand(time(NULL));
     self.particles = list_init();
     /* randomly generate particles */
@@ -182,59 +186,77 @@ void render() {
     /* render particles */
     for (int32_t i = 0; i < self.particles -> length; i += PI_NUMBER_OF_FIELDS) {
         renderParticle(i);
-        if (self.pause == 0) {
-            /* move particles */
-            self.particles -> data[i + PI_XPOS].d += self.particles -> data[i + PI_XVEL].d;
-            if (self.particles -> data[i + PI_XPOS].d >= 320) {
-                self.particles -> data[i + PI_XPOS].d -= 640;
-            }
-            if (self.particles -> data[i + PI_XPOS].d < -320) {
-                self.particles -> data[i + PI_XPOS].d += 640;
-            }
-            self.particles -> data[i + PI_YPOS].d += self.particles -> data[i + PI_YVEL].d;
-            while (self.particles -> data[i + PI_YPOS].d >= 180) {
-                self.particles -> data[i + PI_YPOS].d -= 360;
-            }
-            while (self.particles -> data[i + PI_YPOS].d < -180) {
-                self.particles -> data[i + PI_YPOS].d += 360;
-            }
-            self.particles -> data[i + PI_DIRECTION].d += self.particles -> data[i + PI_DIRCHANGE].d;
-            while (self.particles -> data[i + PI_DIRECTION].d >= 360) {
-                self.particles -> data[i + PI_DIRECTION].d -= 360;
-            }
-            while (self.particles -> data[i + PI_DIRECTION].d < 0) {
-                self.particles -> data[i + PI_DIRECTION].d += 360;
-            }
-            /* check collision (particles need to check if they've crossed paths with any other particle within the circle with a radius of their velocity vector) */
-            double centerX = 0;
-            double Ar = self.particles -> data[i + PI_SIZE].d * radius_table[self.particles -> data[i + PI_CLUSTER].i] / 2;
-            double Ax = self.particles -> data[i + PI_XPOS].d;
-            double Ay = self.particles -> data[i + PI_YPOS].d;
-            double Avx = self.particles -> data[i + PI_XVEL].d;
-            double Avy = self.particles -> data[i + PI_YVEL].d;
-            for (int32_t j = 0; j < i; j += PI_NUMBER_OF_FIELDS) {
-                double Br = self.particles -> data[j + PI_SIZE].d * radius_table[self.particles -> data[j + PI_CLUSTER].i] / 2;
-                double Bx = self.particles -> data[j+ PI_XPOS].d;
-                double By = self.particles -> data[j + PI_YPOS].d;
-                double Bvx = self.particles -> data[j + PI_XVEL].d;
-                double Bvy = self.particles -> data[j + PI_YVEL].d;
-                double discriminant = (2 * (Avx - Bvx) * (Ax - Bx) + 2 * (Avy - Bvy) * (Ay - By)) * (2 * (Avx - Bvx) * (Ax - Bx) + 2 * (Avy - Bvy) * (Ay - By)) + 4 * ((Avx - Bvx) * (Avx - Bvx) + (Avy - Bvy) * (Avy - Bvy)) * ((Ar + Br) * (Ar + Br) - Ax * Ax + 2 * (Ax * Bx) - Bx * Bx - Ay * Ay + 2 * (Ay * By) - By * By);
-                if (discriminant <= 0) {
-                    /* no collision */
-                } else {
-                    double sqrtDisc = sqrt(discriminant);
-                    double t1 = (-2 * (Avx - Bvx) * (Ax - Bx) - 2 * (Avy - Bvy) * (Ay - By) + sqrtDisc) / (2 * ((Avx - Bvx) * (Avx - Bvx) + (Avy - Bvy) * (Avy - Bvy)));
-                    double t2 = (-2 * (Avx - Bvx) * (Ax - Bx) - 2 * (Avy - Bvy) * (Ay - By) - sqrtDisc) / (2 * ((Avx - Bvx) * (Avx - Bvx) + (Avy - Bvy) * (Avy - Bvy)));
-                    if (t2 > 0 && t1 > 0 && (t1 <= 1 || t2 <= 1)) {
-                        self.particles -> data[i + PI_XVEL].d *= -1;
-                        self.particles -> data[i + PI_YVEL].d *= -1;
-                        self.particles -> data[j + PI_XVEL].d *= -1;
-                        self.particles -> data[j + PI_YVEL].d *= -1;
+    }
+    if (self.pause && !self.oneTick) {
+        return;
+    }
+    for (int32_t i = 0; i < self.particles -> length; i += PI_NUMBER_OF_FIELDS) {
+        /* check collision (particles need to check if they've crossed paths with any other particle within the circle with a radius of their velocity vector) */
+        double centerX = 0;
+        double Ar = self.particles -> data[i + PI_SIZE].d * radius_table[self.particles -> data[i + PI_CLUSTER].i] / 2;
+        double Ax = self.particles -> data[i + PI_XPOS].d;
+        double Ay = self.particles -> data[i + PI_YPOS].d;
+        double Avx = self.particles -> data[i + PI_XVEL].d;
+        double Avy = self.particles -> data[i + PI_YVEL].d;
+        for (int32_t j = 0; j < i; j += PI_NUMBER_OF_FIELDS) {
+            double Br = self.particles -> data[j + PI_SIZE].d * radius_table[self.particles -> data[j + PI_CLUSTER].i] / 2;
+            double Bx = self.particles -> data[j+ PI_XPOS].d;
+            double By = self.particles -> data[j + PI_YPOS].d;
+            double Bvx = self.particles -> data[j + PI_XVEL].d;
+            double Bvy = self.particles -> data[j + PI_YVEL].d;
+            double discriminant = (2 * (Avx - Bvx) * (Ax - Bx) + 2 * (Avy - Bvy) * (Ay - By)) * (2 * (Avx - Bvx) * (Ax - Bx) + 2 * (Avy - Bvy) * (Ay - By)) + 4 * ((Avx - Bvx) * (Avx - Bvx) + (Avy - Bvy) * (Avy - Bvy)) * ((Ar + Br) * (Ar + Br) - Ax * Ax + 2 * (Ax * Bx) - Bx * Bx - Ay * Ay + 2 * (Ay * By) - By * By);
+            if (discriminant <= 0) {
+                /* no collision */
+            } else {
+                double sqrtDisc = sqrt(discriminant);
+                double t1 = (-2 * (Avx - Bvx) * (Ax - Bx) - 2 * (Avy - Bvy) * (Ay - By) + sqrtDisc) / (2 * ((Avx - Bvx) * (Avx - Bvx) + (Avy - Bvy) * (Avy - Bvy)));
+                double t2 = (-2 * (Avx - Bvx) * (Ax - Bx) - 2 * (Avy - Bvy) * (Ay - By) - sqrtDisc) / (2 * ((Avx - Bvx) * (Avx - Bvx) + (Avy - Bvy) * (Avy - Bvy)));
+                if (t2 > 0 && t1 > 0 && (t1 <= self.simulationSpeed || t2 <= self.simulationSpeed)) {
+                    if (t1 > t2) {
+                        t1 = t2;
                     }
+                    double oldXi = self.particles -> data[i + PI_XVEL].d;
+                    double oldYi = self.particles -> data[i + PI_YVEL].d;
+                    double oldXj = self.particles -> data[j + PI_XVEL].d;
+                    double oldYj = self.particles -> data[j + PI_YVEL].d;
+                    self.particles -> data[i + PI_XVEL].d *= -1;
+                    self.particles -> data[i + PI_YVEL].d *= -1;
+                    self.particles -> data[j + PI_XVEL].d *= -1;
+                    self.particles -> data[j + PI_YVEL].d *= -1;
+                    /* simulate time */
+                    self.particles -> data[i + PI_XPOS].d += oldXi * t1 - self.particles -> data[i + PI_XVEL].d * t1;
+                    self.particles -> data[i + PI_YPOS].d += oldYi * t1 - self.particles -> data[i + PI_YVEL].d * t1;
+                    self.particles -> data[j + PI_XPOS].d += oldXj * t1 - self.particles -> data[j + PI_XVEL].d * t1;
+                    self.particles -> data[j + PI_YPOS].d += oldYj * t1 - self.particles -> data[j + PI_YVEL].d * t1;
                 }
             }
         }
     }
+    for (int32_t i = 0; i < self.particles -> length; i += PI_NUMBER_OF_FIELDS) {
+        /* move particles */
+        self.particles -> data[i + PI_XPOS].d += self.particles -> data[i + PI_XVEL].d * self.simulationSpeed;
+        if (self.particles -> data[i + PI_XPOS].d >= 320) {
+            self.particles -> data[i + PI_XPOS].d -= 640;
+        }
+        if (self.particles -> data[i + PI_XPOS].d < -320) {
+            self.particles -> data[i + PI_XPOS].d += 640;
+        }
+        self.particles -> data[i + PI_YPOS].d += self.particles -> data[i + PI_YVEL].d * self.simulationSpeed;
+        while (self.particles -> data[i + PI_YPOS].d >= 180) {
+            self.particles -> data[i + PI_YPOS].d -= 360;
+        }
+        while (self.particles -> data[i + PI_YPOS].d < -180) {
+            self.particles -> data[i + PI_YPOS].d += 360;
+        }
+        self.particles -> data[i + PI_DIRECTION].d += self.particles -> data[i + PI_DIRCHANGE].d * self.simulationSpeed;
+        while (self.particles -> data[i + PI_DIRECTION].d >= 360) {
+            self.particles -> data[i + PI_DIRECTION].d -= 360;
+        }
+        while (self.particles -> data[i + PI_DIRECTION].d < 0) {
+            self.particles -> data[i + PI_DIRECTION].d += 360;
+        }
+    }
+    self.oneTick = 0;
 }
 
 void mouseTick() {
@@ -253,6 +275,50 @@ void mouseTick() {
         }
     } else {
         self.keys[4] = 0;
+    }
+    if (turtleKeyPressed(GLFW_KEY_F)) {
+        if (self.keys[5] == 0 || self.keys[5] == 1) {
+            if (self.keys[5] == 0) {
+                self.keys[5] = 70;
+            } else {
+                self.keys[5] = 4;
+            }
+            if (self.pause) {
+                self.oneTick = 1;
+            }
+        } else {
+            self.keys[5]--;
+        }
+    } else {
+        self.keys[5] = 0;
+    }
+    if (turtleKeyPressed(GLFW_KEY_UP)) {
+        if (self.keys[6] == 0 || self.keys[6] == 1) {
+            if (self.keys[6] == 0) {
+                self.keys[6] = 70;
+            } else {
+                self.keys[6] = 4;
+            }
+            self.simulationSpeed *= 1.05;
+        } else {
+            self.keys[6]--;
+        }
+    } else {
+        self.keys[6] = 0;
+    }
+    if (turtleKeyPressed(GLFW_KEY_DOWN)) {
+        if (self.keys[7] == 0 || self.keys[7] == 1) {
+            if (self.keys[7] == 0) {
+                self.keys[7] = 70;
+            } else {
+                self.keys[7] = 4;
+            }
+            self.simulationSpeed /= 1.05;
+        } else {
+            self.keys[7]--;
+        }
+    } else {
+        self.keys[7] = 0;
     }
 }
 
