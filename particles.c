@@ -1,0 +1,333 @@
+// #define TURTLE_IMPLEMENTATION
+#include "turtle.h"
+#include <time.h>
+
+typedef enum {
+    PARTICLE_TYPE_ELECTRON = 0,
+    PARTICLE_TYPE_NUCLEUS,
+    NUMBER_OF_PARTICLE_TYPES,
+} particle_type_t;
+
+/* names of particles */
+char particle_type_ascii[][128] = {
+    "Electron",
+    "Nucleus",
+    "Invalid",
+};
+
+/* radius */
+double radius_table[] = {
+    0.0,
+    1.0,
+    4.0,
+    9.0,
+    9.0,
+    9.0,
+};
+
+typedef enum {
+    PI_TYPE = 0,
+    PI_CLUSTER = 1,
+    PI_XPOS = 2,
+    PI_YPOS = 3,
+    PI_XVEL = 4,
+    PI_YVEL = 5,
+    PI_SIZE = 6,
+    PI_DIR = 7,
+    PI_DIRECTION = 7,
+    PI_DIRCHANGE = 8,
+    PI_DIRECTIONCHANGE = 8,
+    PI_DIRECTION_CHANGE = 8,
+    PI_NUMBER_OF_FIELDS = 20,
+} particle_index_t;
+
+typedef struct {
+    list_t *particles; // type, cluster, xpos, ypos, xvel, yvel, size, direction, direction change, reserved, reserved, reserved, reserved, reserved, reserved, reserved, reserved, reserved, reserved, reserved
+    int32_t electronNucleusBoundary;
+    int8_t pause;
+    int8_t drawRadius;
+    char keys[8];
+} particles_t;
+
+particles_t self;
+
+void printParticle(int32_t index);
+
+void init() {
+    self.electronNucleusBoundary = 2; // cluster of 2 is an electron, cluster of 3 is a nucleus
+    self.pause = 0;
+    self.drawRadius = 0;
+    srand(time(NULL));
+    self.particles = list_init();
+    /* randomly generate particles */
+    int32_t startingParticles = 30; // number of particles
+    for (int32_t i = 0; i < startingParticles; i++) {
+        int32_t type = randomInt(0, NUMBER_OF_PARTICLE_TYPES - 1);
+        list_append(self.particles, (unitype) type, 'i'); // type
+        if (type == PARTICLE_TYPE_ELECTRON) {
+            list_append(self.particles, (unitype) randomInt(1, self.electronNucleusBoundary), 'i'); // cluster (1 or 2)
+        } else if (type == PARTICLE_TYPE_NUCLEUS) {
+            list_append(self.particles, (unitype) randomInt(self.electronNucleusBoundary + 1, 5), 'i'); // cluster (3 to 5)
+        } else {
+            list_append(self.particles, (unitype) 0, 'i'); // cluster (0)
+        }
+        list_append(self.particles, (unitype) randomDouble(-320, 320), 'd'); // xpos
+        list_append(self.particles, (unitype) randomDouble(-180, 180), 'd'); // ypos
+        list_append(self.particles, (unitype) randomDouble(-3, 3), 'd'); // xvel
+        list_append(self.particles, (unitype) randomDouble(-3, 3), 'd'); // yvel
+        list_append(self.particles, (unitype) 1.0, 'd'); // size
+        list_append(self.particles, (unitype) randomDouble(0, 360), 'd'); // direction
+        list_append(self.particles, (unitype) randomDouble(-5, 5), 'd'); // direction change
+        for (int32_t j = 0; j < 11; j++) {
+            list_append(self.particles, (unitype) 0, 'i');
+        }
+        printParticle(i * 20);
+    }
+}
+
+/* print particle attributes */
+void printParticle(int32_t index) {
+    printf("Particle %d (%s)\n", index, particle_type_ascii[self.particles -> data[index + PI_TYPE].i]);
+    printf("- cluster: %d\n", self.particles -> data[index + PI_CLUSTER].i);
+    printf("- xpos: %lf\n", self.particles -> data[index + PI_XPOS].d);
+    printf("- ypos: %lf\n", self.particles -> data[index + PI_YPOS].d);
+    printf("- xvel: %lf\n", self.particles -> data[index + PI_XVEL].d);
+    printf("- yvel: %lf\n", self.particles -> data[index + PI_YVEL].d);
+    printf("- size: %lf\n", self.particles -> data[index + PI_SIZE].d);
+    printf("- direction: %lf\n", self.particles -> data[index + PI_DIR].d);
+    printf("- direction change: %lf\n", self.particles -> data[index + PI_DIRCHANGE].d);
+}
+
+/* draw a particle */
+void renderParticle(int32_t index) {
+    switch (self.particles -> data[index + PI_TYPE].i) {
+        case PARTICLE_TYPE_ELECTRON:
+        turtlePenSize(self.particles -> data[index + PI_SIZE].d * 2);
+        tt_setColor(TT_COLOR_RED);
+        int32_t clusterE = self.particles -> data[index + PI_CLUSTER].i;
+        if (clusterE == 1) {
+            turtleGoto(self.particles -> data[index + PI_XPOS].d, self.particles -> data[index + PI_YPOS].d);
+            turtlePenDown();
+            turtlePenUp();
+        } else {
+            double theta = self.particles -> data[index + PI_DIRECTION].d / 57.2958;
+            for (int32_t i = 0; i < clusterE; i++) {
+                turtleGoto(self.particles -> data[index + PI_XPOS].d + sin(theta) * self.particles -> data[index + PI_SIZE].d * 0.7, self.particles -> data[index + PI_YPOS].d + cos(theta) * self.particles -> data[index + PI_SIZE].d * 0.7);
+                turtlePenDown();
+                turtlePenUp();
+                theta += 360.0 / clusterE / 57.2958;
+            }
+        }
+        break;
+        case PARTICLE_TYPE_NUCLEUS:
+        turtlePenSize(self.particles -> data[index + PI_SIZE].d * 5);
+        tt_setColor(TT_COLOR_LIGHT_GREY);
+        double theta = self.particles -> data[index + PI_DIRECTION].d / 57.2958;
+        int32_t clusterN = self.particles -> data[index + PI_CLUSTER].i;
+        for (int32_t i = 0; i < clusterN; i++) {
+            turtleGoto(self.particles -> data[index + PI_XPOS].d + sin(theta) * self.particles -> data[index + PI_SIZE].d * 2, self.particles -> data[index + PI_YPOS].d + cos(theta) * self.particles -> data[index + PI_SIZE].d * 2);
+            turtlePenDown();
+            turtlePenUp();
+            theta += 360.0 / clusterN / 57.2958;
+        }
+        break;
+    }
+    if (self.drawRadius) {
+        turtlePenSize(self.particles -> data[index + PI_SIZE].d * radius_table[self.particles -> data[index + PI_CLUSTER].i]);
+        turtleGoto(self.particles -> data[index + PI_XPOS].d, self.particles -> data[index + PI_YPOS].d);
+        turtlePenDown();
+        turtlePenUp();
+    }
+}
+
+void render() {
+    /* render particles */
+    for (int32_t i = 0; i < self.particles -> length; i += PI_NUMBER_OF_FIELDS) {
+        renderParticle(i);
+        /* move particles */
+        if (self.pause == 0) {
+            self.particles -> data[i + PI_XPOS].d += self.particles -> data[i + PI_XVEL].d;
+            if (self.particles -> data[i + PI_XPOS].d > 320) {
+                self.particles -> data[i + PI_XPOS].d -= 640;
+            }
+            if (self.particles -> data[i + PI_XPOS].d < -320) {
+                self.particles -> data[i + PI_XPOS].d += 640;
+            }
+            self.particles -> data[i + PI_YPOS].d += self.particles -> data[i + PI_YVEL].d;
+            if (self.particles -> data[i + PI_YPOS].d > 180) {
+                self.particles -> data[i + PI_YPOS].d -= 360;
+            }
+            if (self.particles -> data[i + PI_YPOS].d < -180) {
+                self.particles -> data[i + PI_YPOS].d += 360;
+            }
+            self.particles -> data[i + PI_DIRECTION].d += self.particles -> data[i + PI_DIRCHANGE].d;
+            if (self.particles -> data[i + PI_DIRECTION].d > 360) {
+                self.particles -> data[i + PI_DIRECTION].d -= 360;
+            }
+            if (self.particles -> data[i + PI_DIRECTION].d < 0) {
+                self.particles -> data[i + PI_DIRECTION].d += 360;
+            }
+            /* check collision (particles need to check if they've crossed paths with any other particle within the circle with a radius of their velocity vector) */
+            double centerX = 0;
+
+            // double leftx1 = 0;
+            // double lefty1 = 0;
+            // double leftx2 = 0;
+            // double lefty2 = 0;
+            // for (int j = 0; j < self.particles -> length; j += PI_NUMBER_OF_FIELDS) {
+            //     if (i == j) {
+            //         continue;
+            //     }
+                
+            // }
+        }
+    }
+}
+
+void mouseTick() {
+    if (turtleKeyPressed(GLFW_KEY_SPACE)) {
+        if (self.keys[3] == 0) {
+            self.keys[3] = 1;
+            self.pause = !self.pause;
+        }
+    } else {
+        self.keys[3] = 0;
+    }
+    if (turtleKeyPressed(GLFW_KEY_R)) {
+        if (self.keys[4] == 0) {
+            self.keys[4] = 1;
+            self.drawRadius = !self.drawRadius;
+        }
+    } else {
+        self.keys[4] = 0;
+    }
+}
+
+void parseRibbonOutput() {
+    if (tt_ribbon.output[0] == 0) {
+        return;
+    }
+    tt_ribbon.output[0] = 0;
+    if (tt_ribbon.output[1] == 0) { // File
+        if (tt_ribbon.output[2] == 1) { // New
+            printf("New\n");
+        }
+        if (tt_ribbon.output[2] == 2) { // Save
+            if (osToolsFileDialog.selectedFilenames -> length == 0) {
+                if (osToolsFileDialogSave(OSTOOLS_FILE_DIALOG_FILE, "", NULL) != -1) {
+                    printf("Saved to: %s\n", osToolsFileDialog.selectedFilenames -> data[0].s);
+                }
+            } else {
+                printf("Saved to: %s\n", osToolsFileDialog.selectedFilenames -> data[0].s);
+            }
+        }
+        if (tt_ribbon.output[2] == 3) { // Save As...
+            if (osToolsFileDialogSave(OSTOOLS_FILE_DIALOG_FILE, "", NULL) != -1) {
+                printf("Saved to: %s\n", osToolsFileDialog.selectedFilenames -> data[0].s);
+            }
+        }
+        if (tt_ribbon.output[2] == 4) { // Open
+            if (osToolsFileDialogOpen(OSTOOLS_FILE_DIALOG_MULTIPLE_SELECT, OSTOOLS_FILE_DIALOG_FILE, "", NULL) != -1) {
+                printf("Loaded data from: ");
+                list_print(osToolsFileDialog.selectedFilenames);
+            }
+        }
+    }
+    if (tt_ribbon.output[1] == 1) { // Edit
+        if (tt_ribbon.output[2] == 1) { // Undo
+            printf("Undo\n");
+        }
+        if (tt_ribbon.output[2] == 2) { // Redo
+            printf("Redo\n");
+        }
+        if (tt_ribbon.output[2] == 3) { // Cut
+            osToolsClipboardSetText("test123");
+            printf("Cut \"test123\" to clipboard!\n");
+        }
+        if (tt_ribbon.output[2] == 4) { // Copy
+            osToolsClipboardSetText("test345");
+            printf("Copied \"test345\" to clipboard!\n");
+        }
+        if (tt_ribbon.output[2] == 5) { // Paste
+            osToolsClipboardGetText();
+            printf("Pasted \"%s\" from clipboard!\n", osToolsClipboard.text);
+        }
+    }
+    if (tt_ribbon.output[1] == 2) { // View
+        if (tt_ribbon.output[2] == 1) { // Change theme
+            printf("Change theme\n");
+            if (tt_theme == TT_THEME_DARK) {
+                turtleToolsSetTheme(TT_THEME_COLT);
+            } else if (tt_theme == TT_THEME_COLT) {
+                turtleToolsSetTheme(TT_THEME_NAVY);
+            } else if (tt_theme == TT_THEME_NAVY) {
+                turtleToolsSetTheme(TT_THEME_LIGHT);
+            } else if (tt_theme == TT_THEME_LIGHT) {
+                turtleToolsSetTheme(TT_THEME_DARK);
+            }
+        } 
+        if (tt_ribbon.output[2] == 2) { // GLFW
+            printf("GLFW settings\n");
+        } 
+    }
+}
+
+int main(int argc, char *argv[]) {
+    /* Initialise glfw */
+    if (!glfwInit()) {
+        return -1;
+    }
+    glfwWindowHint(GLFW_SAMPLES, 4); // MSAA (Anti-Aliasing) with 4 samples (must be done before window is created (?))
+
+    /* Create a windowed mode window and its OpenGL context */
+    const GLFWvidmode *monitorSize = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    int32_t windowHeight = monitorSize -> height;
+    GLFWwindow *window = glfwCreateWindow(windowHeight * 16 / 9, windowHeight, "particles", NULL, NULL);
+    if (!window) {
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window);
+    glfwSetWindowSizeLimits(window, windowHeight * 16 / 9 * 0.4, windowHeight * 0.4, windowHeight * 16 / 9, windowHeight);
+
+    /* initialise turtle */
+    turtleInit(window, -320, -180, 320, 180);
+    glfwSetWindowSize(window, windowHeight * 16 / 9 * 0.85, monitorSize -> height * 0.85); // doing it this way ensures the window spawns in the top left of the monitor and fixes resizing limits
+    /* initialise turtleText */
+    turtleTextInit("config/roberto.tgl");
+    /* initialise turtleTools ribbon */
+    turtleToolsSetTheme(TT_THEME_DARK); // dark theme preset
+    ribbonInit("config/ribbonConfig.txt");
+    /* initialise osTools */
+    osToolsInit(argv[0], window); // must include argv[0] to get executableFilepath, must include GLFW window
+    osToolsFileDialogAddGlobalExtension("txt"); // add txt to extension restrictions
+
+    init();
+
+    uint32_t tps = 120; // ticks per second (locked to fps in this case)
+    uint64_t tick = 0; // count number of ticks since application started
+    clock_t start, end;
+
+    while (turtle.close == 0) {
+        start = clock();
+        turtleGetMouseCoords();
+        turtleClear();
+        render();
+        mouseTick();
+        turtleToolsUpdate(); // update turtleTools
+        if (self.pause) {
+            tt_setColor(TT_COLOR_ORANGE);
+            turtleRectangle(312, 172, 318, 178);
+        }
+        parseRibbonOutput(); // user defined function to use ribbon
+        turtleUpdate(); // update the screen
+        end = clock();
+        while ((double) (end - start) / CLOCKS_PER_SEC < (1.0 / tps)) {
+            end = clock();
+        }
+        tick++;
+    }
+    turtleFree();
+    glfwTerminate();
+    return 0;
+}
