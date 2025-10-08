@@ -15,26 +15,6 @@ char particle_type_ascii[][128] = {
     "Invalid",
 };
 
-/* diameter (for collision hitbox) */
-double diameter_table[] = {
-    0.0, // 0
-    1.0, // 1
-    4.0, // 2
-    9.0, // 3
-    9.0, // 4
-    9.0, // 5
-};
-
-/* mass (for collisions) */
-double mass_table[] = {
-    0.0, // 0
-    1.0, // 1
-    2.0, // 2
-    3.0, // 3
-    4.0, // 4
-    5.0, // 5
-};
-
 typedef enum {
     PI_TYPE = 0,
     PI_CLUSTER = 1,
@@ -53,6 +33,8 @@ typedef enum {
 
 typedef struct {
     list_t *particles; // type, cluster, xpos, ypos, xvel, yvel, size, direction, direction change, reserved, reserved, reserved, reserved, reserved, reserved, reserved, reserved, reserved, reserved, reserved
+    list_t *massTable;
+    list_t *diameterTable;
     int32_t electronNucleusBoundary;
     int8_t pause;
     int8_t oneTick;
@@ -76,10 +58,21 @@ void init() {
     self.heat = 1000;
     self.heatSlider = sliderInit("Heat", &self.heat, TT_SLIDER_TYPE_VERTICAL, TT_SLIDER_ALIGN_CENTER, 300, 100, 10, 80, 0, 8000, 1);
     self.heatSlider -> scale = TT_SLIDER_SCALE_EXP;
+    self.massTable = list_init();
+    for (int32_t i = 0; i < 100; i++) {
+        list_append(self.massTable, (unitype) (double) i, 'd');
+    }
+    self.diameterTable = list_init();
+    list_append(self.diameterTable, (unitype) 0.0, 'd');
+    list_append(self.diameterTable, (unitype) 1.0, 'd');
+    list_append(self.diameterTable, (unitype) 4.0, 'd');
+    for (int32_t i = 0; i < 100; i++) {
+        list_append(self.diameterTable, (unitype) 9.0, 'd');
+    }
     srand(time(NULL));
     self.particles = list_init();
     /* randomly generate particles */
-    int32_t startingParticles = 200; // number of particles
+    int32_t startingParticles = 30; // number of particles
     for (int32_t i = 0; i < startingParticles; i++) {
         int32_t type = randomInt(0, NUMBER_OF_PARTICLE_TYPES - 1);
         list_append(self.particles, (unitype) type, 'i'); // type
@@ -209,7 +202,7 @@ void renderParticle(int32_t index) {
         break;
     }
     if (self.drawRadius) {
-        turtlePenSize(self.particles -> data[index + PI_SIZE].d * diameter_table[self.particles -> data[index + PI_CLUSTER].i]);
+        turtlePenSize(self.particles -> data[index + PI_SIZE].d * self.diameterTable -> data[self.particles -> data[index + PI_CLUSTER].i].d);
         turtleGoto(self.particles -> data[index + PI_XPOS].d, self.particles -> data[index + PI_YPOS].d);
         turtlePenDown();
         turtlePenUp();
@@ -227,13 +220,13 @@ void render() {
     for (int32_t i = 0; i < self.particles -> length; i += PI_NUMBER_OF_FIELDS) {
         /* check collision (particles need to check if they've crossed paths with any other particle within the circle with a radius of their velocity vector) */
         double centerX = 0;
-        double Ar = self.particles -> data[i + PI_SIZE].d * diameter_table[self.particles -> data[i + PI_CLUSTER].i] / 2;
+        double Ar = self.particles -> data[i + PI_SIZE].d * self.diameterTable -> data[self.particles -> data[i + PI_CLUSTER].i].d / 2;
         double Ax = self.particles -> data[i + PI_XPOS].d;
         double Ay = self.particles -> data[i + PI_YPOS].d;
         double Avx = self.particles -> data[i + PI_XVEL].d;
         double Avy = self.particles -> data[i + PI_YVEL].d;
         for (int32_t j = 0; j < i; j += PI_NUMBER_OF_FIELDS) {
-            double Br = self.particles -> data[j + PI_SIZE].d * diameter_table[self.particles -> data[j + PI_CLUSTER].i] / 2;
+            double Br = self.particles -> data[j + PI_SIZE].d * self.diameterTable -> data[self.particles -> data[j + PI_CLUSTER].i].d / 2;
             double Bx = self.particles -> data[j + PI_XPOS].d;
             double By = self.particles -> data[j + PI_YPOS].d;
             double Bvx = self.particles -> data[j + PI_XVEL].d;
@@ -249,37 +242,38 @@ void render() {
                     if (t1 > t2) {
                         t1 = t2;
                     }
-                    // printf("collsion between %d and %d\n", i, j);
                     double oldXi = self.particles -> data[i + PI_XVEL].d;
                     double oldYi = self.particles -> data[i + PI_YVEL].d;
                     double oldXj = self.particles -> data[j + PI_XVEL].d;
                     double oldYj = self.particles -> data[j + PI_YVEL].d;
-                    // self.particles -> data[i + PI_XVEL].d *= -1;
-                    // self.particles -> data[i + PI_YVEL].d *= -1;
-                    // self.particles -> data[j + PI_XVEL].d *= -1;
-                    // self.particles -> data[j + PI_YVEL].d *= -1;
-                    // printf("disc: %lf, %lf\n", (oldXi * (1 + mass_table[self.particles -> data[i + PI_CLUSTER].i]) + oldXj * (-1 + mass_table[self.particles -> data[j + PI_CLUSTER].i])) / mass_table[self.particles -> data[j + PI_CLUSTER].i], (oldYi * (1 + mass_table[self.particles -> data[i + PI_CLUSTER].i]) + oldYj * (-1 + mass_table[self.particles -> data[j + PI_CLUSTER].i])) / mass_table[self.particles -> data[j + PI_CLUSTER].i]);
-                    // self.particles -> data[j + PI_XVEL].d = sqrt((oldXi * (1 + mass_table[self.particles -> data[i + PI_CLUSTER].i]) + oldXj * (-1 + mass_table[self.particles -> data[j + PI_CLUSTER].i])) / mass_table[self.particles -> data[j + PI_CLUSTER].i]);
-                    // self.particles -> data[j + PI_YVEL].d = sqrt((oldYi * (1 + mass_table[self.particles -> data[i + PI_CLUSTER].i]) + oldYj * (-1 + mass_table[self.particles -> data[j + PI_CLUSTER].i])) / mass_table[self.particles -> data[j + PI_CLUSTER].i]);
-                    // self.particles -> data[i + PI_XVEL].d = (-oldXi + oldXj) / self.particles -> data[j + PI_XVEL].d;
-                    // self.particles -> data[i + PI_YVEL].d = (-oldYi + oldYj) / self.particles -> data[j + PI_YVEL].d;
-
-
-                    // self.particles -> data[i + PI_XVEL].d = (Via * (Ma - Mb) + 2 * Mb * Vib) / (Ma + Mb);
-                    // self.particles -> data[j + PI_XVEL].d = Via - Vib + Vfa;
-                    if (self.particles -> data[i + PI_TYPE].i == self.particles -> data[i + PI_TYPE].i) {
-                        
-                        // Cv = (Ma * Via + Mb * Vib) / (Ma + Mb)
+                    double massi = self.massTable -> data[self.particles -> data[i + PI_CLUSTER].i].d;
+                    double massj = self.massTable -> data[self.particles -> data[j + PI_CLUSTER].i].d;
+                    int8_t deletedi = 0;
+                    if (self.particles -> data[i + PI_TYPE].i == self.particles -> data[j + PI_TYPE].i) {
+                        /* update j */
+                        self.particles -> data[j + PI_XVEL].d = (massi * oldXi + massj * oldXj) / (massi + massj);
+                        self.particles -> data[j + PI_YVEL].d = (massi * oldYi + massj * oldYj) / (massi + massj);
+                        self.particles -> data[j + PI_CLUSTER].i += self.particles -> data[i + PI_CLUSTER].i;
+                        if (self.particles -> data[j + PI_CLUSTER].i <= 2) {
+                            self.particles -> data[j + PI_TYPE].i = PARTICLE_TYPE_ELECTRON;
+                        } else {
+                            self.particles -> data[j + PI_TYPE].i = PARTICLE_TYPE_NUCLEUS;
+                        }
+                        /* delete i */
+                        list_delete_range(self.particles, i, i + PI_NUMBER_OF_FIELDS);
+                        deletedi = 1;
+                        i -= PI_NUMBER_OF_FIELDS;
                     } else {
-                        self.particles -> data[i + PI_XVEL].d = (oldXi * (mass_table[self.particles -> data[i + PI_CLUSTER].i] - mass_table[self.particles -> data[j + PI_CLUSTER].i]) + 2 * mass_table[self.particles -> data[j + PI_CLUSTER].i] * oldXj) / (mass_table[self.particles -> data[i + PI_CLUSTER].i] + mass_table[self.particles -> data[j + PI_CLUSTER].i]);
-                        self.particles -> data[i + PI_YVEL].d = (oldYi * (mass_table[self.particles -> data[i + PI_CLUSTER].i] - mass_table[self.particles -> data[j + PI_CLUSTER].i]) + 2 * mass_table[self.particles -> data[j + PI_CLUSTER].i] * oldYj) / (mass_table[self.particles -> data[i + PI_CLUSTER].i] + mass_table[self.particles -> data[j + PI_CLUSTER].i]);
+                        self.particles -> data[i + PI_XVEL].d = (oldXi * (massi - massj) + 2 * massj * oldXj) / (massi + massj);
+                        self.particles -> data[i + PI_YVEL].d = (oldYi * (massi - massj) + 2 * massj * oldYj) / (massi + massj);
                         self.particles -> data[j + PI_XVEL].d = oldXi - oldXj + self.particles -> data[i + PI_XVEL].d;
                         self.particles -> data[j + PI_YVEL].d = oldYi - oldYj + self.particles -> data[i + PI_YVEL].d;
                     }
-                    // printf("%lf %lf %lf %lf\n", self.particles -> data[i + PI_XVEL].d, self.particles -> data[i + PI_YVEL].d, self.particles -> data[j + PI_XVEL].d, self.particles -> data[j + PI_YVEL].d);
                     /* simulate time */
-                    self.particles -> data[i + PI_XPOS].d += oldXi * t1 - self.particles -> data[i + PI_XVEL].d * t1;
-                    self.particles -> data[i + PI_YPOS].d += oldYi * t1 - self.particles -> data[i + PI_YVEL].d * t1;
+                    if (!deletedi) {
+                        self.particles -> data[i + PI_XPOS].d += oldXi * t1 - self.particles -> data[i + PI_XVEL].d * t1;
+                        self.particles -> data[i + PI_YPOS].d += oldYi * t1 - self.particles -> data[i + PI_YVEL].d * t1;
+                    }
                     self.particles -> data[j + PI_XPOS].d += oldXj * t1 - self.particles -> data[j + PI_XVEL].d * t1;
                     self.particles -> data[j + PI_YPOS].d += oldYj * t1 - self.particles -> data[j + PI_YVEL].d * t1;
 
