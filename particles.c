@@ -49,6 +49,21 @@ particles_t self;
 
 void printParticle(int32_t index);
 
+void createParticle(particle_type_t type, int32_t cluster, double xpos, double ypos, double xvel, double yvel, double size, double direction, double dirchange) {
+    list_append(self.particles, (unitype) type, 'i'); // type
+    list_append(self.particles, (unitype) cluster, 'i'); // cluster
+    list_append(self.particles, (unitype) xpos, 'd'); // xpos
+    list_append(self.particles, (unitype) ypos, 'd'); // ypos
+    list_append(self.particles, (unitype) xvel, 'd'); // xvel
+    list_append(self.particles, (unitype) yvel, 'd'); // yvel
+    list_append(self.particles, (unitype) size, 'd'); // size
+    list_append(self.particles, (unitype) direction, 'd'); // direction
+    list_append(self.particles, (unitype) dirchange, 'd'); // direction change
+    for (int32_t j = 0; j < 11; j++) {
+        list_append(self.particles, (unitype) 0, 'i');
+    }
+}
+
 void init() {
     self.electronNucleusBoundary = 2; // cluster of 2 is an electron, cluster of 3 is a nucleus
     self.pause = 0;
@@ -56,7 +71,7 @@ void init() {
     self.drawRadius = 0;
     self.simulationSpeed = 1;
     self.heat = 1000;
-    self.heatSlider = sliderInit("Heat", &self.heat, TT_SLIDER_TYPE_VERTICAL, TT_SLIDER_ALIGN_CENTER, 300, 100, 10, 80, 0, 8000, 1);
+    self.heatSlider = sliderInit("Heat", &self.heat, TT_SLIDER_TYPE_VERTICAL, TT_SLIDER_ALIGN_CENTER, 300, 100, 10, 80, 0, 80000, 1);
     self.heatSlider -> scale = TT_SLIDER_SCALE_EXP;
     self.massTable = list_init();
     for (int32_t i = 0; i < 100; i++) {
@@ -72,7 +87,7 @@ void init() {
     srand(time(NULL));
     self.particles = list_init();
     /* randomly generate particles */
-    int32_t startingParticles = 30; // number of particles
+    int32_t startingParticles = 100; // number of particles
     for (int32_t i = 0; i < startingParticles; i++) {
         int32_t type = randomInt(0, NUMBER_OF_PARTICLE_TYPES - 1);
         list_append(self.particles, (unitype) type, 'i'); // type
@@ -248,7 +263,6 @@ void render() {
                     double oldYj = self.particles -> data[j + PI_YVEL].d;
                     double massi = self.massTable -> data[self.particles -> data[i + PI_CLUSTER].i].d;
                     double massj = self.massTable -> data[self.particles -> data[j + PI_CLUSTER].i].d;
-                    int8_t deletedi = 0;
                     if (self.particles -> data[i + PI_TYPE].i == self.particles -> data[j + PI_TYPE].i) {
                         /* update j */
                         self.particles -> data[j + PI_XVEL].d = (massi * oldXi + massj * oldXj) / (massi + massj);
@@ -261,22 +275,62 @@ void render() {
                         }
                         /* delete i */
                         list_delete_range(self.particles, i, i + PI_NUMBER_OF_FIELDS);
-                        deletedi = 1;
                         i -= PI_NUMBER_OF_FIELDS;
+                        /* simulate time */
+                        self.particles -> data[j + PI_XPOS].d += oldXj * t1 - self.particles -> data[j + PI_XVEL].d * t1;
+                        self.particles -> data[j + PI_YPOS].d += oldYj * t1 - self.particles -> data[j + PI_YVEL].d * t1;
+                    } else if (self.particles -> data[i + PI_TYPE].i != self.particles -> data[j + PI_TYPE].i) {
+                        /* simulate time (to contact) */
+                        self.particles -> data[i + PI_XPOS].d += oldXi * t1;
+                        self.particles -> data[i + PI_YPOS].d += oldYi * t1;
+                        self.particles -> data[j + PI_XPOS].d += oldXj * t1;
+                        self.particles -> data[j + PI_YPOS].d += oldYj * t1;
+                        double commonSpeed = (massi * sqrt(oldXi * oldXi + oldYi * oldYi) + massj * sqrt(oldXj * oldXj + oldYj * oldYj)) / (self.particles -> data[i + PI_CLUSTER].i + self.particles -> data[j + PI_CLUSTER].i);
+                        /* update j */
+                        double theta = self.particles -> data[j + PI_DIR].d / 57.2958;
+                        for (int32_t k = 0; k < self.particles -> data[j + PI_CLUSTER].i - 1; k++) {
+                            theta += 360.0 / self.particles -> data[j + PI_CLUSTER].i / 57.2958;
+                            createParticle(PARTICLE_TYPE_ELECTRON, 1, self.particles -> data[j + PI_XPOS].d, self.particles -> data[j + PI_YPOS].d, cos(theta) * commonSpeed, sin(theta) * commonSpeed, 1.0, randomDouble(0, 360), randomDouble(-commonSpeed * 2, commonSpeed * 2));
+                            self.particles -> data[self.particles -> length - PI_NUMBER_OF_FIELDS + PI_XPOS].d -= self.particles -> data[j + PI_XVEL].d * t1;
+                            self.particles -> data[self.particles -> length - PI_NUMBER_OF_FIELDS + PI_YPOS].d -= self.particles -> data[j + PI_YVEL].d * t1;
+                        }
+                        theta = self.particles -> data[j + PI_DIR].d / 57.2958;
+                        self.particles -> data[j + PI_TYPE].i = PARTICLE_TYPE_ELECTRON;
+                        self.particles -> data[j + PI_CLUSTER].i = 1;
+                        self.particles -> data[j + PI_XVEL].d = cos(theta) * commonSpeed;
+                        self.particles -> data[j + PI_YVEL].d = sin(theta) * commonSpeed;
+                        self.particles -> data[j + PI_DIR].d = randomDouble(0, 360);
+                        self.particles -> data[j + PI_DIRCHANGE].d =  randomDouble(-commonSpeed * 2, commonSpeed * 2);
+                        self.particles -> data[j + PI_XPOS].d -= self.particles -> data[j + PI_XVEL].d * t1;
+                        self.particles -> data[j + PI_YPOS].d -= self.particles -> data[j + PI_YVEL].d * t1;
+                        /* update i */
+                        theta = self.particles -> data[i + PI_DIR].d / 57.2958;
+                        for (int32_t k = 0; k < self.particles -> data[i + PI_CLUSTER].i - 1; k++) {
+                            theta += 360.0 / self.particles -> data[i + PI_CLUSTER].i / 57.2958;
+                            createParticle(PARTICLE_TYPE_ELECTRON, 1, self.particles -> data[i + PI_XPOS].d, self.particles -> data[i + PI_YPOS].d, cos(theta) * commonSpeed, sin(theta) * commonSpeed, 1.0, randomDouble(0, 360), randomDouble(-commonSpeed * 2, commonSpeed * 2));
+                            self.particles -> data[self.particles -> length - PI_NUMBER_OF_FIELDS + PI_XPOS].d -= self.particles -> data[i + PI_XVEL].d * t1;
+                            self.particles -> data[self.particles -> length - PI_NUMBER_OF_FIELDS + PI_YPOS].d -= self.particles -> data[i + PI_YVEL].d * t1;
+                        }
+                        theta = self.particles -> data[i + PI_DIR].d / 57.2958;
+                        self.particles -> data[i + PI_TYPE].i = PARTICLE_TYPE_ELECTRON;
+                        self.particles -> data[i + PI_CLUSTER].i = 1;
+                        self.particles -> data[i + PI_XVEL].d = cos(theta) * commonSpeed;
+                        self.particles -> data[i + PI_YVEL].d = sin(theta) * commonSpeed;
+                        self.particles -> data[i + PI_DIR].d = randomDouble(0, 360);
+                        self.particles -> data[i + PI_DIRCHANGE].d =  randomDouble(-commonSpeed * 2, commonSpeed * 2);
+                        self.particles -> data[i + PI_XPOS].d -= self.particles -> data[i + PI_XVEL].d * t1;
+                        self.particles -> data[i + PI_YPOS].d -= self.particles -> data[i + PI_YVEL].d * t1;
                     } else {
                         self.particles -> data[i + PI_XVEL].d = (oldXi * (massi - massj) + 2 * massj * oldXj) / (massi + massj);
                         self.particles -> data[i + PI_YVEL].d = (oldYi * (massi - massj) + 2 * massj * oldYj) / (massi + massj);
                         self.particles -> data[j + PI_XVEL].d = oldXi - oldXj + self.particles -> data[i + PI_XVEL].d;
                         self.particles -> data[j + PI_YVEL].d = oldYi - oldYj + self.particles -> data[i + PI_YVEL].d;
-                    }
-                    /* simulate time */
-                    if (!deletedi) {
+                        /* simulate time */
                         self.particles -> data[i + PI_XPOS].d += oldXi * t1 - self.particles -> data[i + PI_XVEL].d * t1;
                         self.particles -> data[i + PI_YPOS].d += oldYi * t1 - self.particles -> data[i + PI_YVEL].d * t1;
+                        self.particles -> data[j + PI_XPOS].d += oldXj * t1 - self.particles -> data[j + PI_XVEL].d * t1;
+                        self.particles -> data[j + PI_YPOS].d += oldYj * t1 - self.particles -> data[j + PI_YVEL].d * t1;
                     }
-                    self.particles -> data[j + PI_XPOS].d += oldXj * t1 - self.particles -> data[j + PI_XVEL].d * t1;
-                    self.particles -> data[j + PI_YPOS].d += oldYj * t1 - self.particles -> data[j + PI_YVEL].d * t1;
-
                 }
             }
         }
@@ -312,6 +366,8 @@ void renderUI() {
     tt_setColor(TT_COLOR_BLACK);
     turtle.pena = 0.85;
     turtleRectangle(280, -180, 320, 180);
+    tt_setColor(TT_COLOR_TEXT);
+    turtleTextWriteStringf(314, -170, 10, 100, "%d", self.particles -> length / PI_NUMBER_OF_FIELDS);
 }
 
 void mouseTick() {
