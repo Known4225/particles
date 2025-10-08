@@ -87,7 +87,7 @@ void init() {
     srand(time(NULL));
     self.particles = list_init();
     /* randomly generate particles */
-    int32_t startingParticles = 100; // number of particles
+    int32_t startingParticles = 0; // number of particles
     for (int32_t i = 0; i < startingParticles; i++) {
         int32_t type = randomInt(0, NUMBER_OF_PARTICLE_TYPES - 1);
         list_append(self.particles, (unitype) type, 'i'); // type
@@ -148,25 +148,25 @@ void init() {
     for (int32_t j = 0; j < 11; j++) {
         list_append(self.particles, (unitype) 0, 'i');
     }
-    type = PARTICLE_TYPE_NUCLEUS;
-    list_append(self.particles, (unitype) type, 'i'); // type
-    if (type == PARTICLE_TYPE_ELECTRON) {
-        list_append(self.particles, (unitype) randomInt(1, self.electronNucleusBoundary), 'i'); // cluster (1 or 2)
-    } else if (type == PARTICLE_TYPE_NUCLEUS) {
-        list_append(self.particles, (unitype) randomInt(self.electronNucleusBoundary + 1, 5), 'i'); // cluster (3 to 5)
-    } else {
-        list_append(self.particles, (unitype) 0, 'i'); // cluster (0)
-    }
-    list_append(self.particles, (unitype) 0, 'd'); // xpos
-    list_append(self.particles, (unitype) 149.8, 'd'); // ypos
-    list_append(self.particles, (unitype) 0.0, 'd'); // xvel
-    list_append(self.particles, (unitype) -1.0, 'd'); // yvel
-    list_append(self.particles, (unitype) 1.0, 'd'); // size
-    list_append(self.particles, (unitype) randomDouble(0, 360), 'd'); // direction
-    list_append(self.particles, (unitype) randomDouble(-5, 5), 'd'); // direction change
-    for (int32_t j = 0; j < 11; j++) {
-        list_append(self.particles, (unitype) 0, 'i');
-    }
+    // type = PARTICLE_TYPE_NUCLEUS;
+    // list_append(self.particles, (unitype) type, 'i'); // type
+    // if (type == PARTICLE_TYPE_ELECTRON) {
+    //     list_append(self.particles, (unitype) randomInt(1, self.electronNucleusBoundary), 'i'); // cluster (1 or 2)
+    // } else if (type == PARTICLE_TYPE_NUCLEUS) {
+    //     list_append(self.particles, (unitype) randomInt(self.electronNucleusBoundary + 1, 5), 'i'); // cluster (3 to 5)
+    // } else {
+    //     list_append(self.particles, (unitype) 0, 'i'); // cluster (0)
+    // }
+    // list_append(self.particles, (unitype) 0, 'd'); // xpos
+    // list_append(self.particles, (unitype) 149.8, 'd'); // ypos
+    // list_append(self.particles, (unitype) 0.0, 'd'); // xvel
+    // list_append(self.particles, (unitype) -1.0, 'd'); // yvel
+    // list_append(self.particles, (unitype) 1.0, 'd'); // size
+    // list_append(self.particles, (unitype) randomDouble(0, 360), 'd'); // direction
+    // list_append(self.particles, (unitype) randomDouble(-5, 5), 'd'); // direction change
+    // for (int32_t j = 0; j < 11; j++) {
+    //     list_append(self.particles, (unitype) 0, 'i');
+    // }
 }
 
 /* print particle attributes */
@@ -263,7 +263,7 @@ void render() {
                     double oldYj = self.particles -> data[j + PI_YVEL].d;
                     double massi = self.massTable -> data[self.particles -> data[i + PI_CLUSTER].i].d;
                     double massj = self.massTable -> data[self.particles -> data[j + PI_CLUSTER].i].d;
-                    if (self.particles -> data[i + PI_TYPE].i == self.particles -> data[j + PI_TYPE].i) {
+                    if (self.particles -> data[i + PI_TYPE].i == self.particles -> data[j + PI_TYPE].i && 0) {
                         /* update j */
                         self.particles -> data[j + PI_XVEL].d = (massi * oldXi + massj * oldXj) / (massi + massj);
                         self.particles -> data[j + PI_YVEL].d = (massi * oldYi + massj * oldYj) / (massi + massj);
@@ -367,7 +367,14 @@ void renderUI() {
     turtle.pena = 0.85;
     turtleRectangle(280, -180, 320, 180);
     tt_setColor(TT_COLOR_TEXT);
+    /* display total particles */
     turtleTextWriteStringf(314, -170, 10, 100, "%d", self.particles -> length / PI_NUMBER_OF_FIELDS);
+    /* calculate total momentum */
+    double momentum = 0;
+    for (int32_t i = 0; i < self.particles -> length; i += PI_NUMBER_OF_FIELDS) {
+        momentum += self.massTable -> data[self.particles -> data[i + PI_CLUSTER].i].d * sqrt(self.particles -> data[i + PI_XVEL].d * self.particles -> data[i + PI_XVEL].d + self.particles -> data[i + PI_YVEL].d * self.particles -> data[i + PI_YVEL].d);
+    }
+    turtleTextWriteStringf(-314, -170, 10, 0, "%.1lf", momentum);
 }
 
 void mouseTick() {
