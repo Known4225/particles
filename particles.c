@@ -15,14 +15,24 @@ char particle_type_ascii[][128] = {
     "Invalid",
 };
 
-/* radius */
-double radius_table[] = {
-    0.0,
-    1.0,
-    4.0,
-    9.0,
-    9.0,
-    9.0,
+/* diameter (for collision hitbox) */
+double diameter_table[] = {
+    0.0, // 0
+    1.0, // 1
+    4.0, // 2
+    9.0, // 3
+    9.0, // 4
+    9.0, // 5
+};
+
+/* mass (for collisions) */
+double mass_table[] = {
+    0.0, // 0
+    1.0, // 1
+    2.0, // 2
+    3.0, // 3
+    4.0, // 4
+    5.0, // 5
 };
 
 typedef enum {
@@ -49,6 +59,8 @@ typedef struct {
     int8_t drawRadius;
     char keys[8];
     double simulationSpeed;
+    double heat;
+    tt_slider_t *heatSlider;
 } particles_t;
 
 particles_t self;
@@ -61,10 +73,13 @@ void init() {
     self.oneTick = 0;
     self.drawRadius = 0;
     self.simulationSpeed = 1;
+    self.heat = 1000;
+    self.heatSlider = sliderInit("Heat", &self.heat, TT_SLIDER_TYPE_VERTICAL, TT_SLIDER_ALIGN_CENTER, 300, 100, 10, 80, 0, 8000, 1);
+    self.heatSlider -> scale = TT_SLIDER_SCALE_EXP;
     srand(time(NULL));
     self.particles = list_init();
     /* randomly generate particles */
-    int32_t startingParticles = 0; // number of particles
+    int32_t startingParticles = 200; // number of particles
     for (int32_t i = 0; i < startingParticles; i++) {
         int32_t type = randomInt(0, NUMBER_OF_PARTICLE_TYPES - 1);
         list_append(self.particles, (unitype) type, 'i'); // type
@@ -87,8 +102,8 @@ void init() {
         }
         // printParticle(i * 20);
     }
-    int32_t type = PARTICLE_TYPE_ELECTRON;
-    list_append(self.particles, (unitype) type, 'i'); // type
+    int32_t type = PARTICLE_TYPE_NUCLEUS;
+    list_append(self.particles, (unitype) type, 'i'); // typef 
     if (type == PARTICLE_TYPE_ELECTRON) {
         list_append(self.particles, (unitype) randomInt(1, self.electronNucleusBoundary), 'i'); // cluster (1 or 2)
     } else if (type == PARTICLE_TYPE_NUCLEUS) {
@@ -96,8 +111,8 @@ void init() {
     } else {
         list_append(self.particles, (unitype) 0, 'i'); // cluster (0)
     }
-    list_append(self.particles, (unitype) -200.0, 'd'); // xpos
-    list_append(self.particles, (unitype) 0, 'd'); // ypos
+    list_append(self.particles, (unitype) -150.0, 'd'); // xpos
+    list_append(self.particles, (unitype) (-4.5 * sqrt(3) / 2), 'd'); // ypos
     list_append(self.particles, (unitype) 1.0, 'd'); // xvel
     list_append(self.particles, (unitype) 0, 'd'); // yvel
     list_append(self.particles, (unitype) 1.0, 'd'); // size
@@ -115,10 +130,29 @@ void init() {
     } else {
         list_append(self.particles, (unitype) 0, 'i'); // cluster (0)
     }
-    list_append(self.particles, (unitype) 200.0, 'd'); // xpos
-    list_append(self.particles, (unitype) 0, 'd'); // ypos
+    list_append(self.particles, (unitype) 150.0, 'd'); // xpos
+    list_append(self.particles, (unitype) (-4.5 * sqrt(3) / 2), 'd'); // ypos
     list_append(self.particles, (unitype) -1.0, 'd'); // xvel
     list_append(self.particles, (unitype) 0, 'd'); // yvel
+    list_append(self.particles, (unitype) 1.0, 'd'); // size
+    list_append(self.particles, (unitype) randomDouble(0, 360), 'd'); // direction
+    list_append(self.particles, (unitype) randomDouble(-5, 5), 'd'); // direction change
+    for (int32_t j = 0; j < 11; j++) {
+        list_append(self.particles, (unitype) 0, 'i');
+    }
+    type = PARTICLE_TYPE_NUCLEUS;
+    list_append(self.particles, (unitype) type, 'i'); // type
+    if (type == PARTICLE_TYPE_ELECTRON) {
+        list_append(self.particles, (unitype) randomInt(1, self.electronNucleusBoundary), 'i'); // cluster (1 or 2)
+    } else if (type == PARTICLE_TYPE_NUCLEUS) {
+        list_append(self.particles, (unitype) randomInt(self.electronNucleusBoundary + 1, 5), 'i'); // cluster (3 to 5)
+    } else {
+        list_append(self.particles, (unitype) 0, 'i'); // cluster (0)
+    }
+    list_append(self.particles, (unitype) 0, 'd'); // xpos
+    list_append(self.particles, (unitype) 149.8, 'd'); // ypos
+    list_append(self.particles, (unitype) 0.0, 'd'); // xvel
+    list_append(self.particles, (unitype) -1.0, 'd'); // yvel
     list_append(self.particles, (unitype) 1.0, 'd'); // size
     list_append(self.particles, (unitype) randomDouble(0, 360), 'd'); // direction
     list_append(self.particles, (unitype) randomDouble(-5, 5), 'd'); // direction change
@@ -175,7 +209,7 @@ void renderParticle(int32_t index) {
         break;
     }
     if (self.drawRadius) {
-        turtlePenSize(self.particles -> data[index + PI_SIZE].d * radius_table[self.particles -> data[index + PI_CLUSTER].i]);
+        turtlePenSize(self.particles -> data[index + PI_SIZE].d * diameter_table[self.particles -> data[index + PI_CLUSTER].i]);
         turtleGoto(self.particles -> data[index + PI_XPOS].d, self.particles -> data[index + PI_YPOS].d);
         turtlePenDown();
         turtlePenUp();
@@ -193,13 +227,13 @@ void render() {
     for (int32_t i = 0; i < self.particles -> length; i += PI_NUMBER_OF_FIELDS) {
         /* check collision (particles need to check if they've crossed paths with any other particle within the circle with a radius of their velocity vector) */
         double centerX = 0;
-        double Ar = self.particles -> data[i + PI_SIZE].d * radius_table[self.particles -> data[i + PI_CLUSTER].i] / 2;
+        double Ar = self.particles -> data[i + PI_SIZE].d * diameter_table[self.particles -> data[i + PI_CLUSTER].i] / 2;
         double Ax = self.particles -> data[i + PI_XPOS].d;
         double Ay = self.particles -> data[i + PI_YPOS].d;
         double Avx = self.particles -> data[i + PI_XVEL].d;
         double Avy = self.particles -> data[i + PI_YVEL].d;
         for (int32_t j = 0; j < i; j += PI_NUMBER_OF_FIELDS) {
-            double Br = self.particles -> data[j + PI_SIZE].d * radius_table[self.particles -> data[j + PI_CLUSTER].i] / 2;
+            double Br = self.particles -> data[j + PI_SIZE].d * diameter_table[self.particles -> data[j + PI_CLUSTER].i] / 2;
             double Bx = self.particles -> data[j+ PI_XPOS].d;
             double By = self.particles -> data[j + PI_YPOS].d;
             double Bvx = self.particles -> data[j + PI_XVEL].d;
@@ -215,14 +249,30 @@ void render() {
                     if (t1 > t2) {
                         t1 = t2;
                     }
+                    // printf("collsion between %d and %d\n", i, j);
                     double oldXi = self.particles -> data[i + PI_XVEL].d;
                     double oldYi = self.particles -> data[i + PI_YVEL].d;
                     double oldXj = self.particles -> data[j + PI_XVEL].d;
                     double oldYj = self.particles -> data[j + PI_YVEL].d;
-                    self.particles -> data[i + PI_XVEL].d *= -1;
-                    self.particles -> data[i + PI_YVEL].d *= -1;
-                    self.particles -> data[j + PI_XVEL].d *= -1;
-                    self.particles -> data[j + PI_YVEL].d *= -1;
+                    // self.particles -> data[i + PI_XVEL].d *= -1;
+                    // self.particles -> data[i + PI_YVEL].d *= -1;
+                    // self.particles -> data[j + PI_XVEL].d *= -1;
+                    // self.particles -> data[j + PI_YVEL].d *= -1;
+                    // printf("disc: %lf, %lf\n", (oldXi * (1 + mass_table[self.particles -> data[i + PI_CLUSTER].i]) + oldXj * (-1 + mass_table[self.particles -> data[j + PI_CLUSTER].i])) / mass_table[self.particles -> data[j + PI_CLUSTER].i], (oldYi * (1 + mass_table[self.particles -> data[i + PI_CLUSTER].i]) + oldYj * (-1 + mass_table[self.particles -> data[j + PI_CLUSTER].i])) / mass_table[self.particles -> data[j + PI_CLUSTER].i]);
+                    // self.particles -> data[j + PI_XVEL].d = sqrt((oldXi * (1 + mass_table[self.particles -> data[i + PI_CLUSTER].i]) + oldXj * (-1 + mass_table[self.particles -> data[j + PI_CLUSTER].i])) / mass_table[self.particles -> data[j + PI_CLUSTER].i]);
+                    // self.particles -> data[j + PI_YVEL].d = sqrt((oldYi * (1 + mass_table[self.particles -> data[i + PI_CLUSTER].i]) + oldYj * (-1 + mass_table[self.particles -> data[j + PI_CLUSTER].i])) / mass_table[self.particles -> data[j + PI_CLUSTER].i]);
+                    // self.particles -> data[i + PI_XVEL].d = (-oldXi + oldXj) / self.particles -> data[j + PI_XVEL].d;
+                    // self.particles -> data[i + PI_YVEL].d = (-oldYi + oldYj) / self.particles -> data[j + PI_YVEL].d;
+
+
+                    // self.particles -> data[i + PI_XVEL].d = (Via * (Ma - Mb) + 2 * Mb * Vib) / (Ma + Mb);
+                    // self.particles -> data[j + PI_XVEL].d = Via - Vib + Vfa;
+
+                    self.particles -> data[i + PI_XVEL].d = (oldXi * (mass_table[self.particles -> data[i + PI_CLUSTER].i] - mass_table[self.particles -> data[j + PI_CLUSTER].i]) + 2 * mass_table[self.particles -> data[j + PI_CLUSTER].i] * oldXj) / (mass_table[self.particles -> data[i + PI_CLUSTER].i] + mass_table[self.particles -> data[j + PI_CLUSTER].i]);
+                    self.particles -> data[i + PI_YVEL].d = (oldYi * (mass_table[self.particles -> data[i + PI_CLUSTER].i] - mass_table[self.particles -> data[j + PI_CLUSTER].i]) + 2 * mass_table[self.particles -> data[j + PI_CLUSTER].i] * oldYj) / (mass_table[self.particles -> data[i + PI_CLUSTER].i] + mass_table[self.particles -> data[j + PI_CLUSTER].i]);
+                    self.particles -> data[j + PI_XVEL].d = oldXi - oldXj + self.particles -> data[i + PI_XVEL].d;
+                    self.particles -> data[j + PI_YVEL].d = oldYi - oldYj + self.particles -> data[i + PI_YVEL].d;
+                    // printf("%lf %lf %lf %lf\n", self.particles -> data[i + PI_XVEL].d, self.particles -> data[i + PI_YVEL].d, self.particles -> data[j + PI_XVEL].d, self.particles -> data[j + PI_YVEL].d);
                     /* simulate time */
                     self.particles -> data[i + PI_XPOS].d += oldXi * t1 - self.particles -> data[i + PI_XVEL].d * t1;
                     self.particles -> data[i + PI_YPOS].d += oldYi * t1 - self.particles -> data[i + PI_YVEL].d * t1;
@@ -257,6 +307,12 @@ void render() {
         }
     }
     self.oneTick = 0;
+}
+
+void renderUI() {
+    tt_setColor(TT_COLOR_BLACK);
+    turtle.pena = 0.85;
+    turtleRectangle(280, -180, 320, 180);
 }
 
 void mouseTick() {
@@ -299,7 +355,10 @@ void mouseTick() {
             } else {
                 self.keys[6] = 4;
             }
-            self.simulationSpeed *= 1.05;
+            self.heat *= 1.05;
+            if (self.heat > 10000) {
+                self.heat = 10000;
+            }
         } else {
             self.keys[6]--;
         }
@@ -313,13 +372,14 @@ void mouseTick() {
             } else {
                 self.keys[7] = 4;
             }
-            self.simulationSpeed /= 1.05;
+            self.heat /= 1.05;
         } else {
             self.keys[7]--;
         }
     } else {
         self.keys[7] = 0;
     }
+    self.simulationSpeed = self.heat / 1000;
 }
 
 void parseRibbonOutput() {
@@ -432,6 +492,7 @@ int main(int argc, char *argv[]) {
         turtleGetMouseCoords();
         turtleClear();
         render();
+        renderUI();
         mouseTick();
         turtleToolsUpdate(); // update turtleTools
         if (self.pause) {
