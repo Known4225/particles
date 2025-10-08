@@ -234,7 +234,7 @@ void render() {
         double Avy = self.particles -> data[i + PI_YVEL].d;
         for (int32_t j = 0; j < i; j += PI_NUMBER_OF_FIELDS) {
             double Br = self.particles -> data[j + PI_SIZE].d * diameter_table[self.particles -> data[j + PI_CLUSTER].i] / 2;
-            double Bx = self.particles -> data[j+ PI_XPOS].d;
+            double Bx = self.particles -> data[j + PI_XPOS].d;
             double By = self.particles -> data[j + PI_YPOS].d;
             double Bvx = self.particles -> data[j + PI_XVEL].d;
             double Bvy = self.particles -> data[j + PI_YVEL].d;
@@ -267,17 +267,22 @@ void render() {
 
                     // self.particles -> data[i + PI_XVEL].d = (Via * (Ma - Mb) + 2 * Mb * Vib) / (Ma + Mb);
                     // self.particles -> data[j + PI_XVEL].d = Via - Vib + Vfa;
-
-                    self.particles -> data[i + PI_XVEL].d = (oldXi * (mass_table[self.particles -> data[i + PI_CLUSTER].i] - mass_table[self.particles -> data[j + PI_CLUSTER].i]) + 2 * mass_table[self.particles -> data[j + PI_CLUSTER].i] * oldXj) / (mass_table[self.particles -> data[i + PI_CLUSTER].i] + mass_table[self.particles -> data[j + PI_CLUSTER].i]);
-                    self.particles -> data[i + PI_YVEL].d = (oldYi * (mass_table[self.particles -> data[i + PI_CLUSTER].i] - mass_table[self.particles -> data[j + PI_CLUSTER].i]) + 2 * mass_table[self.particles -> data[j + PI_CLUSTER].i] * oldYj) / (mass_table[self.particles -> data[i + PI_CLUSTER].i] + mass_table[self.particles -> data[j + PI_CLUSTER].i]);
-                    self.particles -> data[j + PI_XVEL].d = oldXi - oldXj + self.particles -> data[i + PI_XVEL].d;
-                    self.particles -> data[j + PI_YVEL].d = oldYi - oldYj + self.particles -> data[i + PI_YVEL].d;
+                    if (self.particles -> data[i + PI_TYPE].i == self.particles -> data[i + PI_TYPE].i) {
+                        
+                        // Cv = (Ma * Via + Mb * Vib) / (Ma + Mb)
+                    } else {
+                        self.particles -> data[i + PI_XVEL].d = (oldXi * (mass_table[self.particles -> data[i + PI_CLUSTER].i] - mass_table[self.particles -> data[j + PI_CLUSTER].i]) + 2 * mass_table[self.particles -> data[j + PI_CLUSTER].i] * oldXj) / (mass_table[self.particles -> data[i + PI_CLUSTER].i] + mass_table[self.particles -> data[j + PI_CLUSTER].i]);
+                        self.particles -> data[i + PI_YVEL].d = (oldYi * (mass_table[self.particles -> data[i + PI_CLUSTER].i] - mass_table[self.particles -> data[j + PI_CLUSTER].i]) + 2 * mass_table[self.particles -> data[j + PI_CLUSTER].i] * oldYj) / (mass_table[self.particles -> data[i + PI_CLUSTER].i] + mass_table[self.particles -> data[j + PI_CLUSTER].i]);
+                        self.particles -> data[j + PI_XVEL].d = oldXi - oldXj + self.particles -> data[i + PI_XVEL].d;
+                        self.particles -> data[j + PI_YVEL].d = oldYi - oldYj + self.particles -> data[i + PI_YVEL].d;
+                    }
                     // printf("%lf %lf %lf %lf\n", self.particles -> data[i + PI_XVEL].d, self.particles -> data[i + PI_YVEL].d, self.particles -> data[j + PI_XVEL].d, self.particles -> data[j + PI_YVEL].d);
                     /* simulate time */
                     self.particles -> data[i + PI_XPOS].d += oldXi * t1 - self.particles -> data[i + PI_XVEL].d * t1;
                     self.particles -> data[i + PI_YPOS].d += oldYi * t1 - self.particles -> data[i + PI_YVEL].d * t1;
                     self.particles -> data[j + PI_XPOS].d += oldXj * t1 - self.particles -> data[j + PI_XVEL].d * t1;
                     self.particles -> data[j + PI_YPOS].d += oldYj * t1 - self.particles -> data[j + PI_YVEL].d * t1;
+
                 }
             }
         }
