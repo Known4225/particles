@@ -89,7 +89,7 @@ void init() {
     srand(time(NULL));
     self.particles = list_init();
     /* randomly generate particles */
-    int32_t startingParticles = 0; // number of particles
+    int32_t startingParticles = 100; // number of particles
     for (int32_t i = 0; i < startingParticles; i++) {
         int32_t type = randomInt(0, NUMBER_OF_PARTICLE_TYPES - 1);
         list_append(self.particles, (unitype) type, 'i'); // type
@@ -293,45 +293,45 @@ void render() {
                         self.particles -> data[j + PI_ENERGY].d = energyi + energyj - kenergy;
                     } else if (self.particles -> data[i + PI_TYPE].i != self.particles -> data[j + PI_TYPE].i) {
                         /* simulate time (to contact) */
-                        // self.particles -> data[i + PI_XPOS].d += oldXi * t1;
-                        // self.particles -> data[i + PI_YPOS].d += oldYi * t1;
-                        // self.particles -> data[j + PI_XPOS].d += oldXj * t1;
-                        // self.particles -> data[j + PI_YPOS].d += oldYj * t1;
-                        // double commonSpeed = (massi * sqrt(oldXi * oldXi + oldYi * oldYi) + massj * sqrt(oldXj * oldXj + oldYj * oldYj)) / (self.particles -> data[i + PI_CLUSTER].i + self.particles -> data[j + PI_CLUSTER].i);
-                        // /* update j */
-                        // double theta = self.particles -> data[j + PI_DIR].d / 57.2958;
-                        // for (int32_t k = 0; k < self.particles -> data[j + PI_CLUSTER].i - 1; k++) {
-                        //     theta += 360.0 / self.particles -> data[j + PI_CLUSTER].i / 57.2958;
-                        //     createParticle(PARTICLE_TYPE_ELECTRON, 1, self.particles -> data[j + PI_XPOS].d, self.particles -> data[j + PI_YPOS].d, cos(theta) * commonSpeed, sin(theta) * commonSpeed, 1.0, randomDouble(0, 360), randomDouble(-commonSpeed * 2, commonSpeed * 2), 0);
-                        //     self.particles -> data[self.particles -> length - PI_NUMBER_OF_FIELDS + PI_XPOS].d -= self.particles -> data[j + PI_XVEL].d * t1;
-                        //     self.particles -> data[self.particles -> length - PI_NUMBER_OF_FIELDS + PI_YPOS].d -= self.particles -> data[j + PI_YVEL].d * t1;
-                        // }
-                        // theta = self.particles -> data[j + PI_DIR].d / 57.2958;
-                        // self.particles -> data[j + PI_TYPE].i = PARTICLE_TYPE_ELECTRON;
-                        // self.particles -> data[j + PI_CLUSTER].i = 1;
-                        // self.particles -> data[j + PI_XVEL].d = cos(theta) * commonSpeed;
-                        // self.particles -> data[j + PI_YVEL].d = sin(theta) * commonSpeed;
-                        // self.particles -> data[j + PI_DIR].d = randomDouble(0, 360);
-                        // self.particles -> data[j + PI_DIRCHANGE].d =  randomDouble(-commonSpeed * 2, commonSpeed * 2);
-                        // self.particles -> data[j + PI_XPOS].d -= self.particles -> data[j + PI_XVEL].d * t1;
-                        // self.particles -> data[j + PI_YPOS].d -= self.particles -> data[j + PI_YVEL].d * t1;
-                        // /* update i */
-                        // theta = self.particles -> data[i + PI_DIR].d / 57.2958;
-                        // for (int32_t k = 0; k < self.particles -> data[i + PI_CLUSTER].i - 1; k++) {
-                        //     theta += 360.0 / self.particles -> data[i + PI_CLUSTER].i / 57.2958;
-                        //     createParticle(PARTICLE_TYPE_ELECTRON, 1, self.particles -> data[i + PI_XPOS].d, self.particles -> data[i + PI_YPOS].d, cos(theta) * commonSpeed, sin(theta) * commonSpeed, 1.0, randomDouble(0, 360), randomDouble(-commonSpeed * 2, commonSpeed * 2), 0);
-                        //     self.particles -> data[self.particles -> length - PI_NUMBER_OF_FIELDS + PI_XPOS].d -= self.particles -> data[i + PI_XVEL].d * t1;
-                        //     self.particles -> data[self.particles -> length - PI_NUMBER_OF_FIELDS + PI_YPOS].d -= self.particles -> data[i + PI_YVEL].d * t1;
-                        // }
-                        // theta = self.particles -> data[i + PI_DIR].d / 57.2958;
-                        // self.particles -> data[i + PI_TYPE].i = PARTICLE_TYPE_ELECTRON;
-                        // self.particles -> data[i + PI_CLUSTER].i = 1;
-                        // self.particles -> data[i + PI_XVEL].d = cos(theta) * commonSpeed;
-                        // self.particles -> data[i + PI_YVEL].d = sin(theta) * commonSpeed;
-                        // self.particles -> data[i + PI_DIR].d = randomDouble(0, 360);
-                        // self.particles -> data[i + PI_DIRCHANGE].d =  randomDouble(-commonSpeed * 2, commonSpeed * 2);
-                        // self.particles -> data[i + PI_XPOS].d -= self.particles -> data[i + PI_XVEL].d * t1;
-                        // self.particles -> data[i + PI_YPOS].d -= self.particles -> data[i + PI_YVEL].d * t1;
+                        self.particles -> data[i + PI_XPOS].d += oldXi * t1;
+                        self.particles -> data[i + PI_YPOS].d += oldYi * t1;
+                        self.particles -> data[j + PI_XPOS].d += oldXj * t1;
+                        self.particles -> data[j + PI_YPOS].d += oldYj * t1;
+                        double commonSpeed = (massi * sqrt(oldXi * oldXi + oldYi * oldYi) + massj * sqrt(oldXj * oldXj + oldYj * oldYj)) / (self.particles -> data[i + PI_CLUSTER].i + self.particles -> data[j + PI_CLUSTER].i);
+                        /* update j */
+                        double theta = self.particles -> data[j + PI_DIR].d / 57.2958;
+                        for (int32_t k = 0; k < self.particles -> data[j + PI_CLUSTER].i - 1; k++) {
+                            theta += 360.0 / self.particles -> data[j + PI_CLUSTER].i / 57.2958;
+                            createParticle(PARTICLE_TYPE_ELECTRON, 1, self.particles -> data[j + PI_XPOS].d, self.particles -> data[j + PI_YPOS].d, cos(theta) * commonSpeed, sin(theta) * commonSpeed, 1.0, randomDouble(0, 360), randomDouble(-commonSpeed * 2, commonSpeed * 2), 0);
+                            self.particles -> data[self.particles -> length - PI_NUMBER_OF_FIELDS + PI_XPOS].d -= self.particles -> data[j + PI_XVEL].d * t1;
+                            self.particles -> data[self.particles -> length - PI_NUMBER_OF_FIELDS + PI_YPOS].d -= self.particles -> data[j + PI_YVEL].d * t1;
+                        }
+                        theta = self.particles -> data[j + PI_DIR].d / 57.2958;
+                        self.particles -> data[j + PI_TYPE].i = PARTICLE_TYPE_ELECTRON;
+                        self.particles -> data[j + PI_CLUSTER].i = 1;
+                        self.particles -> data[j + PI_XVEL].d = cos(theta) * commonSpeed;
+                        self.particles -> data[j + PI_YVEL].d = sin(theta) * commonSpeed;
+                        self.particles -> data[j + PI_DIR].d = randomDouble(0, 360);
+                        self.particles -> data[j + PI_DIRCHANGE].d =  randomDouble(-commonSpeed * 2, commonSpeed * 2);
+                        self.particles -> data[j + PI_XPOS].d -= self.particles -> data[j + PI_XVEL].d * t1;
+                        self.particles -> data[j + PI_YPOS].d -= self.particles -> data[j + PI_YVEL].d * t1;
+                        /* update i */
+                        theta = self.particles -> data[i + PI_DIR].d / 57.2958;
+                        for (int32_t k = 0; k < self.particles -> data[i + PI_CLUSTER].i - 1; k++) {
+                            theta += 360.0 / self.particles -> data[i + PI_CLUSTER].i / 57.2958;
+                            createParticle(PARTICLE_TYPE_ELECTRON, 1, self.particles -> data[i + PI_XPOS].d, self.particles -> data[i + PI_YPOS].d, cos(theta) * commonSpeed, sin(theta) * commonSpeed, 1.0, randomDouble(0, 360), randomDouble(-commonSpeed * 2, commonSpeed * 2), 0);
+                            self.particles -> data[self.particles -> length - PI_NUMBER_OF_FIELDS + PI_XPOS].d -= self.particles -> data[i + PI_XVEL].d * t1;
+                            self.particles -> data[self.particles -> length - PI_NUMBER_OF_FIELDS + PI_YPOS].d -= self.particles -> data[i + PI_YVEL].d * t1;
+                        }
+                        theta = self.particles -> data[i + PI_DIR].d / 57.2958;
+                        self.particles -> data[i + PI_TYPE].i = PARTICLE_TYPE_ELECTRON;
+                        self.particles -> data[i + PI_CLUSTER].i = 1;
+                        self.particles -> data[i + PI_XVEL].d = cos(theta) * commonSpeed;
+                        self.particles -> data[i + PI_YVEL].d = sin(theta) * commonSpeed;
+                        self.particles -> data[i + PI_DIR].d = randomDouble(0, 360);
+                        self.particles -> data[i + PI_DIRCHANGE].d =  randomDouble(-commonSpeed * 2, commonSpeed * 2);
+                        self.particles -> data[i + PI_XPOS].d -= self.particles -> data[i + PI_XVEL].d * t1;
+                        self.particles -> data[i + PI_YPOS].d -= self.particles -> data[i + PI_YVEL].d * t1;
 
                         double energyi = massi / 2 * (self.particles -> data[i + PI_XVEL].d * self.particles -> data[i + PI_XVEL].d + self.particles -> data[i + PI_YVEL].d * self.particles -> data[i + PI_YVEL].d);
                         double energyj = massj / 2 * (self.particles -> data[j + PI_XVEL].d * self.particles -> data[j + PI_XVEL].d + self.particles -> data[j + PI_YVEL].d * self.particles -> data[j + PI_YVEL].d);
